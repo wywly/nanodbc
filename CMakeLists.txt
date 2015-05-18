@@ -1,29 +1,11 @@
 cmake_minimum_required(VERSION 2.6)
 project(nanodbc)
 
+########################################
+## Optional Settings
+########################################
 option(NANODBC_USE_UNICODE "build with unicode support enabled" OFF)
 option(NANODBC_HANDLE_NODATA_BUG "enable special handling for SQL_NO_DATA (required for vertica)" OFF)
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Werror")
-
-if(APPLE)
-	set(CMAKE_MACOSX_RPATH ON)
-endif()
-
-add_definitions(--std=c++11)
-
-########################################
-## find unixODBC or iODBC config binary
-########################################
-find_program(ODBC_CONFIG odbc_config $ENV{ODBC_PATH}/bin /usr/bin /usr/local/bin PATHS)
-
-if(NOT ODBC_CONFIG)
-	find_program(ODBC_CONFIG iodbc-config $ENV{ODBC_PATH}/bin /usr/bin /usr/local/bin PATHS)
-endif()
-
-if(NOT ODBC_CONFIG)
-	message(FATAL_ERROR "can not find odbc config program")
-endif()
-
 if(NANODBC_USE_UNICODE)
 	message(STATUS "Unicode support: Enabled")
 	add_definitions(-DNANODBC_USE_UNICODE)
@@ -39,18 +21,41 @@ else()
 endif()
 
 ########################################
-## get ODBC compile and link flags
+## Warnings as Errors
 ########################################
-execute_process(COMMAND ${ODBC_CONFIG} --libs OUTPUT_VARIABLE ODBC_LINK_FLAGS OUTPUT_STRIP_TRAILING_WHITESPACE)
-execute_process(COMMAND ${ODBC_CONFIG} --cflags OUTPUT_VARIABLE ODBC_COMPILE_FLAGS OUTPUT_STRIP_TRAILING_WHITESPACE)
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Werror")
 
 ########################################
-## optional NANODBC_USE_UNICODE
+## OS X Support
 ########################################
+if(APPLE)
+	set(CMAKE_MACOSX_RPATH ON)
+endif()
+
+########################################
+## Mandatory C++11
+########################################
+add_definitions(--std=c++11)
+
+########################################
+## unixODBC or iODBC
+########################################
+find_program(ODBC_CONFIG odbc_config $ENV{ODBC_PATH}/bin /usr/bin /usr/local/bin PATHS)
+
+if(NOT ODBC_CONFIG)
+	find_program(ODBC_CONFIG iodbc-config $ENV{ODBC_PATH}/bin /usr/bin /usr/local/bin PATHS)
+endif()
+
+if(NOT ODBC_CONFIG)
+	message(FATAL_ERROR "can not find odbc config program")
+endif()
+
+execute_process(COMMAND ${ODBC_CONFIG} --cflags OUTPUT_VARIABLE ODBC_COMPILE_FLAGS OUTPUT_STRIP_TRAILING_WHITESPACE)
+execute_process(COMMAND ${ODBC_CONFIG} --libs OUTPUT_VARIABLE ODBC_LINK_FLAGS OUTPUT_STRIP_TRAILING_WHITESPACE)
 set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} ${ODBC_LINK_FLAGS}")
 
 ########################################
-## shared library
+## Shared Library
 ########################################
 add_library(nanodbc SHARED src/nanodbc.cpp)
 set_target_properties(nanodbc PROPERTIES
@@ -58,11 +63,14 @@ set_target_properties(nanodbc PROPERTIES
 	LIBRARY_OUTPUT_DIRECTORY "lib"
 )
 
+########################################
+## Installation Settings
+########################################
 install(FILES src/nanodbc.h DESTINATION include)
 install(TARGETS nanodbc LIBRARY DESTINATION lib)
 
 ########################################
-## unit tests
+## Unit Tests
 ########################################
 enable_testing()
 add_subdirectory(test)
